@@ -11,12 +11,16 @@ from agents import Agent, Runner, SQLiteSession, WebSearchTool, FileSearchTool, 
 class FilteredSQLiteSession(SQLiteSession):
     def _Remove_action_Recursive(self, obj):
         if isinstance(obj, dict):
-            cleaned = {k: v for k , v in obj.items() if k != "action"}
+            cleaned = {k: v for k , v in obj.items() if k != "action" }
             return {k: self._Remove_action_Recursive(v) for k, v in cleaned.items()}
         elif isinstance(obj, list):
             return [self._Remove_action_Recursive(item) for item in obj]
         else:
             return obj
+    async def add_items(self, items):
+        cleaned = [self._Remove_action_Recursive(copy.deepcopy(item)) for item in items]
+        await super().add_items(cleaned)
+
     async def get_items(self):
         items = await super().get_items()
         return [
