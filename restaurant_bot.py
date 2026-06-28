@@ -246,16 +246,16 @@ async def run_agent(message):
                         response = ""
         except InputGuardrailTripwireTriggered:
             text_placeholder.warning(
-                "🚫 레스토랑 관련 질문만 도와드릴 수 있어요!\n\n"
-                "메뉴 문의, 주문, 예약, 불만 접수등 레스토랑에 관한 질문을 해주세요 🍽️ "
+                "🚫 저기요, 마법사님, 우리 세빗자루 펍에 관련 질문만 도와드릴 수 있어요!\n\n"
+                "메뉴 문의, 주문, 예약, 불만 접수등 세빗자루 펍에 관한 질문을 해주세요 🍽️ "
             )
         except OutputGuardrailTripwireTriggered:
             st.session_state["text_placeholder"].empty()
             text_placeholder.warning(
-                "죄송합니다. 지금은 응답을 표시할 수 없습니다. 다시 질문해주세요! "
+                "죄송합니다. 지금은 마법사들이 아무도 없네요. 응답을 표시할 수 없네요, 다시 질문해주시겠어요? "
             )
 
-prompt = st.chat_input("메뉴, 주문, 예약 중 무엇을 도와드릴까요?")
+prompt = st.chat_input("어서오세요! 마법같은 세빗자루 펍에 오신걸 환영합니다. 저는 로즈메리타 마담이에요, 메뉴, 주문, 예약 중 무엇을 도와드릴까요?")
 
 if prompt:
     with st.chat_message("human"):
