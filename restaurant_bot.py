@@ -1,8 +1,12 @@
+import os
+import asyncio
+import streamlit as st
 import dotenv
 dotenv.load_dotenv()
 
-import asyncio
-import streamlit as st
+if "OPENAI_API_KEY" in st.secrets:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+
 from pydantic import BaseModel
 from agents import (
     Agent, Runner, SQLiteSession, handoff,
@@ -71,7 +75,7 @@ output_guardrail_agent = Agent(
 @output_guardrail
 async def restaurant_output_guardrail(
     ctx: RunContextWrapper,
-    agnet: Agent,
+    agent: Agent,
     output: str
 ) -> GuardrailFunctionOutput:
     
@@ -91,54 +95,66 @@ class HandoffData(BaseModel):
     reason: str
 
 menu_agent = Agent(
-    name="Menu Agent",
+    name="Menu Wizard",
     instructions=f"""
-    당신은 레스토랑의 메뉴 전문가입니다. 다음을 도와드릴 수 있습니다. :
-    - 메뉴 항목 및 설명
-    - 메뉴의 재료 및 알레르기 정보
-    - 채식, 비건, 글루텐프리 등 식이습관을 고려한 메뉴옵션
-    - 음식 추천
-    항상 한국어로 친절하게 답변하세요. 메뉴 외의 질문(주문, 예약)이 명시적으로 오면 해당 전문가에게 연결하세요""",
+    당신은 세 빗자루 펍의 Menu Wizard입니다.
+    호그스미드 최고의 마법 요리를 손님께 안내해드리세요:
+    - 버터맥주, 호박 주스, 보어헤드 구이, 마법 스튜, 초콜릿 개구리 케이크 등 메뉴 안내
+    - 재료 및 알레르기 정보
+    - 채식, 비건, 글루텐프리 등 식이습관을 고려한 메뉴 추천
+    손님의 입맛에 맞는 마법 같은 요리를 추천해주세요.
+    항상 한국어로 친절하게 답변하세요. 메뉴 외의 질문(주문, 예약)이 명시적으로 오면 해당 전문가에게 연결하세요.
+    방금 다른 직원에게서 넘어온 경우, 절대 바로 다시 넘기지 마세요.""",
+    
+    input_guardrails=[restaurant_input_guardrail],
+    output_guardrails=[restaurant_output_guardrail]
 )
 
 order_agent = Agent(
-    name="Order Agent",
+    name="Order Wizard",
     instructions=f"""
-    당신은 레스토랑의 주문 전문가입니다. 다음을 도와드릴 수 있습니다. :
-    - 음식 주문 받기
+    당신은 세 빗자루 펍의 Order Wizard입니다. 손님의 주문을 정확하고 친절하게 처리하세요:
+    - 마법 요리 주문 받기
     - 주문 내역 확인 및 수정
-    - 조리 예상 시간 안내
-    - 메뉴를 정확하게 확인
+    - 조리 예상 시간 안내 (마법이라도 시간이 걸려요!)
     주문을 받을때는 메뉴의 항목과 수량을 명확하게 항상 확인하세요.
-    항상 한국어로 친절하게 답변하세요. 주문 외의 질문(메뉴, 예약)이 명시적으로 오면 해당 전문가에게 연결하세요 """,
+    항상 한국어로 친절하게 답변하세요. 주문 외의 질문(메뉴, 예약)이 명시적으로 오면 해당 전문가에게 연결하세요.
+    방금 다른 직원에게서 넘어온 경우, 절대 바로 다시 넘기지 마세요.
+    """,
+    input_guardrails=[restaurant_input_guardrail],
+    output_guardrails=[restaurant_output_guardrail],
 )
 
 reservation_agent = Agent(
-    name="Reservation Agent",
+    name="Reservation Wizard",
     instructions=f"""
-    당신은 레스토랑의 예약 전문가입니다. 다음을 도와드릴 수 있습니다. :
+    신은 세 빗자루 펍의 Reservation Wizard입니다. 호그스미드 최고의 자리를 손님께 예약해드리세요:
     - 테이블 예약
     - 예약 가능 여부 확인
     - 예약 변경 및 취소
     - 예약 확인번호 제공
     예약시 반드시 다음을 확인하세요 : 인원수, 날짜, 시간, 이름.
-    항상 한국어로 친절하게 답변하세요.예약 외의 질문(주문, 메뉴)이 명시적으로 오면 해당 전문가에게 연결하세요 """,
+    항상 한국어로 친절하게 답변하세요.예약 외의 질문(주문, 메뉴)이 명시적으로 오면 해당 전문가에게 연결하세요.
+    방금 다른 직원에게서 넘어온 경우, 절대 바로 다시 넘기지 마세요.
+    """,
+    input_guardrails=[restaurant_input_guardrail],
+    output_guardrails=[restaurant_output_guardrail],
 )
 
-compliants_agent = Agent(
-    name= "Compliants Agent",
-    instructions= """당신은 레스토랑의 고객 불만 전담 상담사입니다. 
+complaints_agent = Agent(
+    name= "Complaints Wizard",
+    instructions= """당신은 세 빗자루 펍의 Complaints Wizard입니다.
+    손님의 불편함을 진심으로 해결해드리세요.
     순서대로 응대하세요:
     1. 고객 불만을 진심으로 공감하고 인정하기 ("불편하셨겠네요 정말. 죄송합니다")
     2. 상황에 맞는 해결책 제시하기 : 
-    - 음식 품질 문제 => 제조리 또는 환불
+    - 음식 품질, 잘못 나온 음식, 주문 오류, 음식이 맞지 않는 경우 문제 => 재조리 또는 환불 , 
     - 서비스 불만 => 할인 쿠폰 또는 매니저 콜백
     - 대기 시간 문제 => 사과 와 보상안 제공
-    
     3. 심각한 문제(식중독, 안전사고)는 매니저 에스컬레이션 안내하기 
-    
-    절대 변명하거나 고객 감정을 무시하지 마세요. 항상 한국어로 정중하고 따뜻하고 친절하게 답변하세요. """,
-
+    절대 변명하거나 고객 감정을 무시하지 마세요. 항상 한국어로 정중하고 따뜻하고 친절하게 답변하세요. 
+    방금 다른 직원에게서 넘어온 경우, 절대 바로 다시 넘기지 마세요.""",
+    input_guardrails=[restaurant_input_guardrail],
     output_guardrails=[restaurant_output_guardrail],
 )
 
@@ -156,33 +172,35 @@ def make_handoff(agent):
     )
 
 triage_agent = Agent(
-    name="Triage Agent",
+    name="로즈메리타 부인",
     instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-    당신은 레스토랑의 고객문의의 첫번째 안내 담당입니다.
-    고객의 요청을 파악해서 적합한 에이전트 전문가에게 연결하세요:
-    - 메뉴, 재료, 알레르기 관련 질문은 Menu Agent 전문가에게 연결
-    - 음식 주문 관련 질문은 Order Agent 전문가에게 연결
-    - 테이블 예약 등 예약 관련 질문은 Reservation Agent 전문가에게 연결
-    - 고객불만, 컴플레인, 환불 요청은 Compliants Agent 전문가에게 연결 
+    당신은 세 빗자루 펍(The Three Broomsticks)의 주인 마담 로즈메르타입니다.
+    호그스미드를 찾아온 손님을 따뜻하고 활기차게 맞이하세요.
+    손님의 요청을 파악해서 적합한 직원에게 안내하세요:
+    - 메뉴, 재료, 알레르기 관련 질문은 Menu Wizard 에게 연결
+    - 음식 주문 관련 질문은 Order Wizard 에게 연결
+    - 테이블 예약 등 예약 관련 질문은 Reservation Wizard 에게 연결
+    - 고객불만, 컴플레인, 환불 요청은 Complaints Wizard 에게 연결
     단순 질문과 불만을 혼동하지 마세요.
-    연결할때는 "ooo 전문가(Agent라는 표현은 제외하고) 에게 연결해드릴게요! 잠시만 기다려주세요" 라고 안내하세요.
-    항상 한국어로 친절하게 답변하세요.""",
+    연결할때는 "저희 [직원명] 에게 연결해드릴게요! 잠시만요 🪄 " 라고 안내하세요.
+    항상 한국어로 친절하게 답변하세요.
+    연결할때는 반드시 손님의 요청 의도를 정확히 파악한 후 한 번만 연결하세요.""",
     handoffs=[
         make_handoff(menu_agent),
         make_handoff(order_agent),
         make_handoff(reservation_agent),
-        make_handoff(compliants_agent)
+        make_handoff(complaints_agent)
     ],
     input_guardrails=[restaurant_input_guardrail],
 )
-menu_agent.handoffs = [make_handoff(order_agent), make_handoff(reservation_agent), make_handoff(compliants_agent)]
-order_agent.handoffs = [make_handoff(menu_agent), make_handoff(reservation_agent), make_handoff(compliants_agent)]
-reservation_agent.handoffs = [make_handoff(order_agent), make_handoff(menu_agent), make_handoff(compliants_agent)]
-compliants_agent.handoffs = [make_handoff(order_agent), make_handoff(menu_agent), make_handoff(reservation_agent)]
+menu_agent.handoffs = [make_handoff(order_agent), make_handoff(reservation_agent), make_handoff(complaints_agent)]
+order_agent.handoffs = [make_handoff(menu_agent), make_handoff(reservation_agent), make_handoff(complaints_agent)]
+reservation_agent.handoffs = [make_handoff(order_agent), make_handoff(menu_agent), make_handoff(complaints_agent)]
+complaints_agent.handoffs = [make_handoff(order_agent), make_handoff(menu_agent), make_handoff(reservation_agent)]
 
-st.set_page_config(page_title="레스토랑 봇", page_icon="🍽️")
-st.title("🍽️ Hyeonheebee's Restaurant Bot ")
-st.caption("메뉴, 주문, 예약까지 전부 도와드려요!")
+st.set_page_config(page_title="호그스미드 - Three Broomsticks PUB", page_icon="🪄 ")
+st.title("🪄  Three Broomsticks PUB")
+st.caption("호그스미드에서 마법 같은 식사를 경험하세요 ✨")
 
 if "agent" not in st.session_state:
     st.session_state["agent"] = triage_agent
@@ -248,3 +266,4 @@ with st.sidebar:
     if st.button("대화 초기화하기"):
         asyncio.run(session.clear_session())
         st.session_state["agent"] = triage_agent
+        st.rerun()
